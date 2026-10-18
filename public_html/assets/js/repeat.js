@@ -74,6 +74,16 @@
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
   });
 
+  // Invite link on the customer card (Pro referrals).
+  $('[data-invite-copy]')?.addEventListener('click', async (e) => {
+    const url = $('[data-invite]').dataset.url;
+    if (navigator.share) {
+      try { await navigator.share({ title: document.title, url }); return; } catch {}
+    }
+    try { await navigator.clipboard.writeText(url); } catch {}
+    e.currentTarget.textContent = 'Enlace copiado';
+  });
+
   // ---- Card editor: live preview -------------------------------------------------------------
   const form = $('[data-card-form]');
   const card = $('.preview [data-card]');
@@ -96,7 +106,10 @@
       const box = $('[data-card-stamps]', card);
       box.style.setProperty('--cols', req <= 6 ? req : req <= 10 ? Math.ceil(req / 2) : Math.ceil(req / 3));
       card.style.setProperty('--cols', box.style.getPropertyValue('--cols'));
-      box.innerHTML = Array.from({ length: req }, (_, i) => `<span class="stamp${i < filled ? ' on' : ''}">${i < filled ? CHECK : ''}</span>`).join('');
+      const rows = Math.ceil(req / Number(box.style.getPropertyValue('--cols')));
+      card.style.setProperty('--stamp', ['1fr', '42px', '32px'][Math.min(3, rows) - 1]);
+      const svg = card.dataset.stampSvg || CHECK;
+      box.innerHTML = Array.from({ length: req }, (_, i) => `<span class="stamp${i < filled ? ' on' : ''}">${i < filled ? svg : ''}</span>`).join('');
       $('[data-card-required]', card).textContent = req;
     };
     form.addEventListener('input', (e) => e.target.dataset.live && set(e.target.dataset.live, e.target.value));
@@ -111,6 +124,11 @@
         set(input.dataset.live, v);
       });
     });
+    // Pro: stamp icon picker.
+    $$('[data-stamp-option]', form).forEach((input) => input.addEventListener('change', () => {
+      card.dataset.stampSvg = input.dataset.svg;
+      renderStamps();
+    }));
     $$('[data-preset]', form).forEach((btn) => btn.addEventListener('click', () => {
       const [bg, accent] = btn.dataset.preset.split(',');
       form.card_bg.value = bg;
@@ -163,7 +181,7 @@
       box.innerHTML = Array.from({ length: s.required }, (_, i) => {
         const on = i < s.stamps;
         const fresh = on && i >= last.stamps && s.stamps > last.stamps;
-        return `<span class="stamp${on ? ' on' : ''}${fresh ? ' pop' : ''}">${on ? CHECK : ''}</span>`;
+        return `<span class="stamp${on ? ' on' : ''}${fresh ? ' pop' : ''}">${on ? (lcard.dataset.stampSvg || CHECK) : ''}</span>`;
       }).join('');
       $('[data-bar]').style.setProperty('--w', `${Math.round((s.stamps / s.required) * 100)}%`);
       const left = s.required - s.stamps;

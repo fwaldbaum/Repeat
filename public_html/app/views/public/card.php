@@ -2,6 +2,10 @@
 $required = (int) $business['stamps_required'];
 $state = customer_state($business, $customer);
 $left = $required - $state['stamps'];
+$pro = is_pro($business);
+$double = $pro ? double_label($business) : '';
+$inviteUrl = url('/c/' . $business['slug'] . '?ref=' . $customer['token']);
+$refStamps = (int) $business['referral_stamps'];
 ?>
 <!doctype html>
 <html lang="es">
@@ -29,6 +33,10 @@ $left = $required - $state['stamps'];
       <div class="bar"><span data-bar style="--w:<?= round($state['stamps'] / $required * 100) ?>%"></span></div>
     </div>
 
+    <?php if ($pro && $business['birthday_gift'] && is_birthday_week($customer)): ?>
+      <div class="reward-ready" style="border-color:rgba(236,72,153,.4)"><?= icon('cake', 24) ?><div><b>Feliz cumpleaños, <?= e(explode(' ', $customer['name'])[0]) ?></b><br><span style="color:var(--muted);font-size:14px"><?= e($business['name']) ?> te dejó un premio de regalo en tu tarjeta.</span></div></div>
+    <?php endif; ?>
+
     <div class="reward-ready" data-reward <?= $state['rewards'] ? '' : 'hidden' ?>>
       <?= icon('gift', 24) ?>
       <div><b data-reward-text><?= $state['rewards'] === 1 ? 'Tienes 1 premio listo' : "Tienes {$state['rewards']} premios listos" ?></b><br><span style="color:var(--muted);font-size:14px">Muestra tu código en caja para canjear: <?= e($business['reward']) ?>.</span></div>
@@ -38,6 +46,20 @@ $left = $required - $state['stamps'];
       <div class="qr-box" data-qr="<?= e($customer['token']) ?>" role="img" aria-label="Código de tu tarjeta"></div>
       <p>Muestra este código en <?= e($business['name']) ?> cada vez que vengas.</p>
     </div>
+
+    <?php if ($double): ?>
+      <div class="alert alert-info" style="width:100%;max-width:420px"><?= icon('zap', 18) ?><span><b>Sellos dobles</b> <?= e(mb_strtolower(mb_substr($double, 0, 1)) . mb_substr($double, 1)) ?>.</span></div>
+    <?php endif; ?>
+
+    <?php if (referral_on($business)): ?>
+      <div class="glass invite" data-invite data-url="<?= e($inviteUrl) ?>">
+        <div><b>Invita a un amigo</b><p>Cuando se una con tu enlace, ganan <?= $refStamps ?> <?= $refStamps === 1 ? 'sello' : 'sellos' ?> cada uno.</p></div>
+        <div class="invite-actions">
+          <a class="btn btn-primary btn-sm" href="https://wa.me/?text=<?= rawurlencode("Únete a la tarjeta de sellos de {$business['name']} con mi enlace y ganamos sellos los dos: {$inviteUrl}") ?>" target="_blank" rel="noopener"><?= icon('message', 15) ?> WhatsApp</a>
+          <button type="button" class="btn btn-glass btn-sm" data-invite-copy><?= icon('copy', 15) ?> Copiar enlace</button>
+        </div>
+      </div>
+    <?php endif; ?>
 
     <div class="wallet-buttons">
       <?php if (gw_enabled()): ?>
@@ -51,7 +73,7 @@ $left = $required - $state['stamps'];
     </div>
 
     <?php if ($business['message']): ?><p class="hint" style="max-width:420px;text-align:center"><?= e($business['message']) ?></p><?php endif; ?>
-    <a class="powered" href="<?= e(u('/')) ?>"><img src="<?= e(u('/assets/img/repeat-mark.svg')) ?>" alt="">Funciona con Repeat</a>
+    <?php if (!$pro): ?><a class="powered" href="<?= e(u('/')) ?>"><img src="<?= e(u('/assets/img/repeat-mark.svg')) ?>" alt="">Funciona con Repeat</a><?php endif; ?>
   </div>
 </main>
 <canvas class="celebrate" aria-hidden="true"></canvas>

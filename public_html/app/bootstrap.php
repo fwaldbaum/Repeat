@@ -151,9 +151,19 @@ function ago(?string $utc): string
  * Idempotent schema. Tables are prefixed "rp_" so Repeat can share a database with ZERO.
  * New changes go at the end as a new version; never rewrite earlier ones.
  */
+/** ADD COLUMN only when missing (MySQL has no ADD COLUMN IF NOT EXISTS). */
+function add_column(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $exists = $pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+    $exists->execute([$table, $column]);
+    if (!$exists->fetchColumn()) {
+        $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
+    }
+}
+
 function migrate(PDO $pdo): void
 {
-    $version = 1;
+    $version = 2;
     try {
         if ((int) $pdo->query("SELECT v FROM rp_meta WHERE k = 'schema'")->fetchColumn() >= $version) {
             return;
@@ -240,6 +250,18 @@ function migrate(PDO $pdo): void
         PRIMARY KEY (device_id, serial),
         KEY rp_apple_serial (serial)
     ) {$t}");
+    // ---- v2: Repeat Pro (sold at ZERO) and its card features ----
+    add_column($pdo, 'rp_users', 'plan', "VARCHAR(10) NOT NULL DEFAULT 'free'");
+    add_column($pdo, 'rp_users', 'plan_expires_at', 'DATETIME NULL');
+    add_column($pdo, 'rp_businesses', 'stamp_icon', "VARCHAR(16) NOT NULL DEFAULT 'check'");
+    add_column($pdo, 'rp_businesses', 'birthday_gift', 'TINYINT(1) NOT NULL DEFAULT 0');
+    add_column($pdo, 'rp_businesses', 'double_days', "VARCHAR(20) NOT NULL DEFAULT ''");
+    add_column($pdo, 'rp_businesses', 'double_from', 'TIME NULL');
+    add_column($pdo, 'rp_businesses', 'double_to', 'TIME NULL');
+    add_column($pdo, 'rp_businesses', 'referral_stamps', 'TINYINT UNSIGNED NOT NULL DEFAULT 0');
+    add_column($pdo, 'rp_customers', 'referred_by', 'INT UNSIGNED NULL');
+    add_column($pdo, 'rp_customers', 'birthday_gift_year', 'SMALLINT UNSIGNED NULL');
+
     $pdo->prepare("INSERT INTO rp_meta (k, v) VALUES ('schema', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)")->execute([(string) $version]);
 }
 
@@ -344,5 +366,6 @@ function asset(string $path): string
 
 require APP_DIR . '/auth.php';
 require APP_DIR . '/cards.php';
+require APP_DIR . '/pro.php';
 require APP_DIR . '/wallet_google.php';
 require APP_DIR . '/wallet_apple.php';

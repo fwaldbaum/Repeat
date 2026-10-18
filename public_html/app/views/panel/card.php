@@ -19,6 +19,7 @@
       <label for="message">Mensaje para tus clientes <span style="font-weight:400;color:var(--subtle)">(opcional)</span></label>
       <textarea class="input" id="message" name="message" maxlength="160" placeholder="Ej: Válido de lunes a viernes. Agenda al +56 9 1234 5678."><?= e($business['message']) ?></textarea>
     </div>
+    <?php partial('pro_fields', ['business' => $business]); ?>
     <div class="save-bar"><button class="btn btn-primary"><?= icon('check', 18) ?> Guardar cambios</button></div>
   </form>
   <div class="preview">

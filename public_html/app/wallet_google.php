@@ -77,6 +77,8 @@ function gw_object(array $business, array $customer, string $issuer): array
         'textModulesData' => array_values(array_filter([
             ['id' => 'reward', 'header' => "Premio al completar {$required} sellos", 'body' => $business['reward']],
             $business['message'] ? ['id' => 'message', 'header' => $business['name'], 'body' => $business['message']] : null,
+            // Free plan cards carry Repeat's name; Pro removes it.
+            isset($business['owner_id']) && !is_pro($business) ? ['id' => 'repeat', 'header' => 'Tarjeta digital', 'body' => 'Funciona con Repeat by ZERO · repeat.zerosolutions.cl'] : null,
         ])),
         'linksModuleData' => ['uris' => [['uri' => url("/t/{$customer['token']}"), 'description' => 'Ver mi tarjeta', 'id' => 'card']]],
         'hexBackgroundColor' => $business['card_bg'],

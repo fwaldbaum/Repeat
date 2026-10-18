@@ -32,6 +32,10 @@ function route(string $method, string $path): void
     if (str_starts_with($path, '/wallet/')) {
         apple_web_service($method, substr($path, strlen('/wallet')));
     }
+    // ZERO's server tells Repeat about a paid plan; it signs the body instead of carrying a session.
+    if ($method === 'POST' && $path === '/zero/plan') {
+        zero_plan_webhook();
+    }
     // Everything else that writes needs the session's CSRF token (forms and the panel's fetch calls).
     if ($method === 'POST' && !csrf_ok()) {
         http_response_code(419);
@@ -88,6 +92,7 @@ function route(string $method, string $path): void
                 'title' => 'Inicio · Repeat', 'layout' => 'panel', 'section' => 'inicio', 'business' => $business,
                 'stats' => dashboard_stats($business), 'days' => stamps_by_day($business), 'activity' => recent_activity($business),
                 'top' => q('SELECT * FROM rp_customers WHERE business_id = ? AND visits > 0 ORDER BY total_stamps DESC, last_visit_at DESC LIMIT 5', [$business['id']])->fetchAll(),
+                'birthdays' => birthdays_this_month($business),
             ]);
             return;
         case 'GET /panel/escanear':
@@ -103,6 +108,13 @@ function route(string $method, string $path): void
             return;
         case 'POST /panel/tarjeta':
             save_card_action();
+            return;
+        case 'GET /panel/pro':
+            $business = require_business();
+            render('panel/pro', ['title' => 'Repeat Pro', 'layout' => 'panel', 'section' => 'pro', 'business' => $business, 'user' => owner_of($business)]);
+            return;
+        case 'GET /panel/clientes/exportar':
+            export_customers();
             return;
         case 'GET /panel/compartir':
             $business = require_business();
@@ -151,6 +163,7 @@ function route(string $method, string $path): void
     if ($method === 'GET' && preg_match('#^/t/([\w-]{8,32})(/estado|/google|/apple)?$#', $path, $m)) {
         $customer = customer_by_token($m[1]) ?? not_found();
         $business = q('SELECT * FROM rp_businesses WHERE id = ?', [$customer['business_id']])->fetch();
+        $customer = maybe_birthday_gift($business, $customer);
         switch ($m[2] ?? '') {
             case '/estado':
                 json_out(customer_state($business, $customer));
@@ -208,6 +221,16 @@ function save_card_action(): void
             flash('error', $err->getMessage());
         }
     }
+    // Pro settings are kept as they are when the plan isn't active.
+    $pro = is_pro($business) ? pro_settings_from($_POST) : [
+        'stamp_icon' => $business['stamp_icon'], 'birthday_gift' => $business['birthday_gift'], 'double_days' => $business['double_days'],
+        'double_from' => $business['double_from'], 'double_to' => $business['double_to'], 'referral_stamps' => $business['referral_stamps'],
+    ];
+    q(
+        'UPDATE rp_businesses SET stamp_icon = ?, birthday_gift = ?, double_days = ?, double_from = ?, double_to = ?, referral_stamps = ?
+          WHERE id = ?',
+        [$pro['stamp_icon'], $pro['birthday_gift'], $pro['double_days'], $pro['double_from'], $pro['double_to'], $pro['referral_stamps'], $business['id']],
+    );
     q(
         'UPDATE rp_businesses SET name = ?, category = ?, stamps_required = ?, reward = ?, welcome_stamps = ?, card_bg = ?, card_fg = ?,
             card_accent = ?, message = ?, logo = ?, updated_at = ? WHERE id = ?',
@@ -222,10 +245,16 @@ function clients_page(): void
 {
     $business = require_business();
     $search = trim((string) ($_GET['q'] ?? ''));
-    $order = ['recientes' => 'COALESCE(last_visit_at, created_at) DESC', 'sellos' => 'total_stamps DESC', 'nuevos' => 'created_at DESC', 'premios' => 'rewards_available DESC, stamps DESC'];
+    $order = ['recientes' => 'COALESCE(last_visit_at, created_at) DESC', 'sellos' => 'total_stamps DESC', 'nuevos' => 'created_at DESC',
+        'premios' => 'rewards_available DESC, stamps DESC', 'recuperar' => 'last_visit_at ASC'];
     $sort = array_key_exists($_GET['orden'] ?? '', $order) ? $_GET['orden'] : 'recientes';
     $params = [$business['id']];
     $where = 'business_id = ?';
+    if ($sort === 'recuperar') {
+        // Came at least once and haven't been back in 30 days.
+        $where .= ' AND visits > 0 AND last_visit_at < ?';
+        $params[] = now_utc(-30 * 86400);
+    }
     if ($search !== '') {
         $where .= ' AND (name LIKE ? OR phone LIKE ?)';
         $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
@@ -260,7 +289,7 @@ function customer_from_scan(array $business, string $scanned): ?array
         $scanned = $m[1];
     }
     $c = customer_by_token($scanned);
-    return $c && (int) $c['business_id'] === (int) $business['id'] ? $c : null;
+    return $c && (int) $c['business_id'] === (int) $business['id'] ? maybe_birthday_gift($business, $c) : null;
 }
 
 function customer_action(string $action): void
@@ -277,8 +306,10 @@ function customer_action(string $action): void
     if (too_many('stamp:' . $c['id'], 6, 60)) {
         json_out(['error' => 'Demasiados sellos seguidos para este cliente. Espera un minuto.'], 429);
     }
-    [$updated, $eventId, $earned] = add_stamp($business, $c, (int) ($_POST['count'] ?? 1));
-    json_out(['customer' => customer_state($business, $updated), 'event' => $eventId, 'earned' => $earned]);
+    $count = min(5, max(1, (int) ($_POST['count'] ?? 1)));
+    $doubled = double_active($business);
+    [$updated, $eventId, $earned] = add_stamp($business, $c, $doubled ? $count * 2 : $count);
+    json_out(['customer' => customer_state($business, $updated), 'event' => $eventId, 'earned' => $earned, 'doubled' => $doubled, 'added' => $doubled ? $count * 2 : $count]);
 }
 
 function join_action(array $business): void
@@ -303,5 +334,66 @@ function join_action(array $business): void
     }
     $date = DateTime::createFromFormat('!Y-m-d', $birthday);
     [$customer, $isNew] = join_customer($business, $name, $phone, $date ? $date->format('Y-m-d') : null);
+    if ($isNew && !empty($_POST['ref'])) {
+        reward_referral($business, $customer, (string) $_POST['ref']);
+    }
     redirect("/t/{$customer['token']}" . ($isNew ? '?nueva=1' : '?existente=1'));
+}
+
+/** Validates the Pro part of the card form. */
+function pro_settings_from(array $in): array
+{
+    $time = fn ($v) => preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) $v) ? $v . ':00' : null;
+    $days = array_values(array_unique(array_filter(array_map('intval', (array) ($in['double_days'] ?? [])), fn ($d) => $d >= 0 && $d <= 6)));
+    sort($days);
+    $from = $time($in['double_from'] ?? '');
+    $to = $time($in['double_to'] ?? '');
+    if (!$from || !$to || $from >= $to || !$days) {
+        [$from, $to, $days] = [null, null, []];
+    }
+    return [
+        'stamp_icon' => isset(STAMP_ICONS[$in['stamp_icon'] ?? '']) ? $in['stamp_icon'] : 'check',
+        'birthday_gift' => empty($in['birthday_gift']) ? 0 : 1,
+        'double_days' => implode(',', $days),
+        'double_from' => $from,
+        'double_to' => $to,
+        'referral_stamps' => min(3, max(0, (int) ($in['referral_stamps'] ?? 0))),
+    ];
+}
+
+/** Customers whose birthday falls in the current month (Chile time), soonest first. */
+function birthdays_this_month(array $business): array
+{
+    $tz = new DateTimeZone('America/Santiago');
+    $month = (int) (new DateTime('now', $tz))->format('n');
+    return q(
+        'SELECT * FROM rp_customers WHERE business_id = ? AND birthday IS NOT NULL AND MONTH(birthday) = ? ORDER BY DAY(birthday) LIMIT 12',
+        [$business['id'], $month],
+    )->fetchAll();
+}
+
+/** Pro: every customer as CSV, opening cleanly in Excel (UTF-8 BOM, semicolons). */
+function export_customers(): void
+{
+    $business = require_business();
+    if (!is_pro($business)) {
+        flash('error', 'Exportar clientes es parte de Repeat Pro.');
+        redirect('/panel/pro');
+    }
+    $rows = q('SELECT * FROM rp_customers WHERE business_id = ? ORDER BY created_at', [$business['id']]);
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="clientes-' . slugify($business['name']) . '-' . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['Nombre', 'Teléfono', 'Cumpleaños', 'Sellos actuales', 'Sellos totales', 'Visitas', 'Premios listos', 'Premios canjeados', 'Última visita', 'Cliente desde'], ';');
+    // Leading =, +, - or @ would run as a formula in Excel.
+    $safe = fn ($v) => preg_match('/^[=+\-@]/', (string) $v) ? "'" . $v : $v;
+    foreach ($rows as $c) {
+        fputcsv($out, array_map($safe, [
+            $c['name'], pretty_phone($c['phone']), $c['birthday'] ?? '', $c['stamps'], $c['total_stamps'], $c['visits'],
+            $c['rewards_available'], $c['rewards_redeemed'], local_time($c['last_visit_at'], 'Y-m-d H:i'), local_time($c['created_at'], 'Y-m-d'),
+        ]), ';');
+    }
+    fclose($out);
+    exit;
 }

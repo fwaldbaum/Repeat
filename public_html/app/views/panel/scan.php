@@ -1,6 +1,9 @@
 <div class="page-head">
   <div><h1>Sumar sellos</h1><p>Escanea el código de la tarjeta del cliente, o búscalo por su nombre o teléfono.</p></div>
 </div>
+<?php if (double_active($business)): ?>
+  <div class="alert alert-success" style="margin-bottom:16px"><?= icon('zap', 18) ?><span><b>Hora de sellos dobles.</b> Cada sello que sumes ahora vale el doble (<?= e(double_label($business)) ?>).</span></div>
+<?php endif; ?>
 <div class="scan-layout" data-scanner data-api="<?= e(u('/panel/api')) ?>" data-required="<?= (int) $business['stamps_required'] ?>">
   <div class="grid">
     <div class="camera">

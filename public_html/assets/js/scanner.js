@@ -35,11 +35,11 @@
     if (!holder.firstElementChild) holder.appendChild(document.getElementById('card-template').content.firstElementChild.cloneNode(true));
     const card = holder.firstElementChild;
     card.style.maxWidth = '100%';
-    card.querySelector('.lcard-foot .muted:last-child, .lcard-mark')?.replaceWith(Object.assign(document.createElement('span'), { className: 'muted', textContent: c.name.split(' ')[0] }));
+    card.querySelector('.lcard-kicker').textContent = c.name;
     card.querySelector('[data-card-stamps]').innerHTML = Array.from({ length: c.required }, (_, i) => {
       const on = i < c.stamps;
       const pop = on && prev !== null && i >= prev && c.stamps > prev;
-      return `<span class="stamp${on ? ' on' : ''}${pop ? ' pop' : ''}">${on ? CHECK : ''}</span>`;
+      return `<span class="stamp${on ? ' on' : ''}${pop ? ' pop' : ''}">${on ? (card.dataset.stampSvg || CHECK) : ''}</span>`;
     }).join('');
     const reward = $('[data-r-reward]');
     reward.hidden = c.rewards === 0;
@@ -72,7 +72,10 @@
         lastEvent = data.event;
         show(data.customer, data.earned);
         root.querySelector('[data-act="undo"]').hidden = false;
-        toast(data.earned ? `${data.customer.name} completó su tarjeta y ganó su premio` : `${n === 1 ? 'Sello sumado' : '2 sellos sumados'} a ${data.customer.name}`);
+        const what = data.added === 1 ? 'Sello sumado' : `${data.added} sellos sumados`;
+        toast(data.earned
+          ? `${data.customer.name} completó su tarjeta y ganó su premio`
+          : `${what} a ${data.customer.name}${data.doubled ? ' (hora de sellos dobles)' : ''}`);
       } else if (act === 'redeem') {
         const data = await post('canjear', { token: current.token });
         show(data.customer);

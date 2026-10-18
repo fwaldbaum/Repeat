@@ -44,6 +44,26 @@
   </section>
 </div>
 
+<?php if ($birthdays):
+    $months = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+?>
+<section class="glass box" style="margin-top:16px">
+  <div class="box-head">
+    <div><h2>Cumpleaños de <?= e($months[(int) date('n')]) ?></h2><p><?= is_pro($business) && $business['birthday_gift'] ? 'Reciben su regalo automático en la semana de su cumpleaños.' : 'Salúdalos por WhatsApp, o activa el regalo automático con Pro.' ?></p></div>
+    <?php if (!is_pro($business)): ?><a class="btn btn-ghost btn-sm" href="<?= e(u('/panel/pro')) ?>"><?= icon('crown', 15) ?> Pro</a><?php endif; ?>
+  </div>
+  <div class="list">
+    <?php foreach ($birthdays as $c): ?>
+      <div class="list-row">
+        <span class="avatar"><?= icon('cake', 16) ?></span>
+        <div class="grow"><div class="t"><a href="<?= e(u('/panel/clientes/' . $c['id'])) ?>"><?= e($c['name']) ?></a></div><div class="m"><?= (int) substr($c['birthday'], 8, 2) ?> de <?= e($months[(int) substr($c['birthday'], 5, 2)]) ?><?= is_birthday_week($c) ? ' · esta semana' : '' ?></div></div>
+        <a class="btn btn-ghost btn-sm" href="https://wa.me/<?= e(ltrim($c['phone'], '+')) ?>?text=<?= rawurlencode('Feliz cumpleaños, ' . explode(' ', $c['name'])[0] . '. Te saludamos desde ' . $business['name'] . '.') ?>" target="_blank" rel="noopener"><?= icon('message', 15) ?> Saludar</a>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <?php if ($top): ?>
 <section class="glass box" style="margin-top:16px">
   <div class="box-head"><div><h2>Tus clientes más fieles</h2><p>Por sellos acumulados</p></div></div>

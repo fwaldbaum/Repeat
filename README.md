@@ -49,6 +49,21 @@ public_html/                 <- esto va a la carpeta del subdominio en cPanel
 
 Las tablas se crean solas en la primera visita.
 
+## Repeat Pro
+
+Se vende en ZERO (zerosolutions.cl/precios, plan `repeat_pro`: $6.990 al mes, antes $14.990) y viene incluido en
+ZERO Plus. Después del pago ZERO avisa a Repeat en `POST /zero/plan`; el plan también llega cada vez que el negocio
+abre Repeat desde su cuenta ZERO. Pro agrega:
+
+- tarjetas, página para unirse, afiche y billeteras **sin el logo de Repeat**;
+- **ícono de sello** a elección;
+- **regalo de cumpleaños** automático (un premio en la semana del cumpleaños, una vez al año);
+- **horas de sellos dobles** (días y horario);
+- **trae a un amigo** (enlace por cliente; ambos ganan sellos);
+- **exportar clientes** a Excel (CSV).
+
+Gratis para todos: clientes por recuperar (con mensaje de WhatsApp) y cumpleaños del mes.
+
 ## Billeteras (opcional)
 
 Sin esto la tarjeta funciona igual en el navegador del celular, con su QR y sus sellos en vivo. Con esto aparecen los

@@ -58,6 +58,16 @@ function verify_zero_ticket(mixed $ticket): array
 /** Finds or creates the Repeat user for a ZERO account (matched by ZERO id, then email). */
 function user_from_zero(array $claims): array
 {
+    $user = find_or_create_zero_user($claims);
+    // The ticket also carries the plan paid at ZERO, so Repeat catches up even if ZERO's push failed.
+    if (apply_zero_plan($user, $claims['plan'] ?? null)) {
+        $user = q('SELECT * FROM rp_users WHERE id = ?', [$user['id']])->fetch();
+    }
+    return $user;
+}
+
+function find_or_create_zero_user(array $claims): array
+{
     $email = mb_strtolower(trim($claims['email']));
     $name = mb_substr(trim((string) ($claims['name'] ?? '')), 0, 120) ?: explode('@', $email)[0];
     $zeroId = isset($claims['sub']) ? (int) $claims['sub'] : null;

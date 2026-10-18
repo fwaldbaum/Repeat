@@ -42,7 +42,8 @@
     <path d="M0 210 C90 170 160 130 250 160 C340 190 400 120 500 150 C590 177 660 140 800 170 V300 H0Z" fill="#000" opacity=".25"/>
     <path d="M0 250 C120 220 220 200 330 230 C440 258 560 210 800 240 V300 H0Z" fill="#000" opacity=".35"/>
   </svg>
-  <p class="foot">Sin descargar apps · Gratis · Funciona con Repeat</p>
+  <?php if (double_label($b) && is_pro($b)): ?><p class="scan" style="margin-top:4mm;font-size:5mm;opacity:.85">Sellos dobles: <?= e(double_label($b)) ?></p><?php endif; ?>
+  <p class="foot">Sin descargar apps · Gratis<?= is_pro($b) ? '' : ' · Funciona con Repeat' ?></p>
 </div>
 </body>
 </html>

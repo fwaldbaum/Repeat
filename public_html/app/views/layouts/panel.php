@@ -7,6 +7,7 @@ $links = [
     'clientes' => ['/panel/clientes', 'users', 'Clientes'],
     'tarjeta' => ['/panel/tarjeta', 'palette', 'Tarjeta'],
     'compartir' => ['/panel/compartir', 'share', 'Compartir'],
+    'pro' => ['/panel/pro', 'crown', 'Pro'],
 ];
 ?>
 <!doctype html>
@@ -36,7 +37,7 @@ $links = [
     <?= $content ?>
   </main>
 </div>
-<nav class="mobile-nav" aria-label="Panel">
+<nav class="mobile-nav" aria-label="Panel" style="grid-template-columns:repeat(<?= count($links) ?>,1fr)">
   <?php foreach ($links as $key => [$href, $ic, $label]): ?>
     <a href="<?= e(u($href)) ?>" class="<?= $key === $section ? 'active' : '' ?><?= $key === 'escanear' && $section !== 'escanear' ? ' cta' : '' ?>"><?= icon($ic, 20) ?><span><?= e($key === 'escanear' ? 'Sellar' : $label) ?></span></a>
   <?php endforeach; ?>

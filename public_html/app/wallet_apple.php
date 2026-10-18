@@ -55,6 +55,9 @@ function apple_pass_json(array $business, array $customer, array $c): array
     if ($business['message']) {
         array_unshift($back, ['key' => 'message', 'label' => $business['name'], 'value' => $business['message']]);
     }
+    if (!is_pro($business)) {
+        $back[] = ['key' => 'repeat', 'label' => 'Tarjeta digital', 'value' => 'Funciona con Repeat by ZERO'];
+    }
     return [
         'formatVersion' => 1,
         'passTypeIdentifier' => $c['pass_type_id'],

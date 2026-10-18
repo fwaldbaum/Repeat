@@ -166,9 +166,11 @@ function log_event(array $business, array $customer, string $type, int $amount =
  * Adds stamps; each full card becomes an available reward. Returns the updated customer, the
  * event id (for undo) and how many rewards this stamp completed.
  */
-function add_stamp(array $business, array $customer, int $count = 1): array
+function add_stamp(array $business, array $customer, int $count = 1, string $type = 'stamp'): array
 {
-    $count = min(5, max(1, $count));
+    $count = min(10, max(1, $count));
+    // Referral stamps are a gift, not a visit.
+    $visit = $type === 'stamp' ? 1 : 0;
     $required = (int) $business['stamps_required'];
     $pdo = db();
     $pdo->beginTransaction();
@@ -177,10 +179,10 @@ function add_stamp(array $business, array $customer, int $count = 1): array
     $earned = intdiv($stamps, $required);
     q(
         'UPDATE rp_customers SET stamps = ?, rewards_available = rewards_available + ?, total_stamps = total_stamps + ?,
-            visits = visits + 1, last_visit_at = ?, updated_at = ? WHERE id = ?',
-        [$stamps % $required, $earned, $count, now_utc(), now_utc(), $c['id']],
+            visits = visits + ?, last_visit_at = IF(? = 1, ?, last_visit_at), updated_at = ? WHERE id = ?',
+        [$stamps % $required, $earned, $count, $visit, $visit, now_utc(), now_utc(), $c['id']],
     );
-    $eventId = log_event($business, $c, 'stamp', $count);
+    $eventId = log_event($business, $c, $type, $count);
     if ($earned) {
         log_event($business, $c, 'reward', $earned);
     }
@@ -261,6 +263,7 @@ function customer_state(array $business, array $c): array
         'visits' => (int) $c['visits'],
         'last_visit' => ago($c['last_visit_at']),
         'updated' => strtotime($c['updated_at'] . ' UTC'),
+        'birthday_week' => is_birthday_week($c),
     ];
 }
 
@@ -306,7 +309,7 @@ function recent_activity(array $business, int $limit = 8): array
 {
     return q(
         "SELECT e.*, c.name, c.id AS cid FROM rp_events e JOIN rp_customers c ON c.id = e.customer_id
-          WHERE e.business_id = ? AND e.undone_at IS NULL ORDER BY e.id DESC LIMIT {$limit}",
+          WHERE e.business_id = ? AND e.undone_at IS NULL ORDER BY e.created_at DESC, e.id DESC LIMIT {$limit}",
         [$business['id']],
     )->fetchAll();
 }
@@ -320,6 +323,8 @@ function event_text(array $ev): string
         'stamp' => $n === 1 ? 'sumó un sello' : "sumó {$n} sellos",
         'reward' => 'completó la tarjeta y ganó su premio',
         'redeem' => 'canjeó su premio',
+        'birthday' => 'recibió su regalo de cumpleaños',
+        'referral' => $n === 1 ? 'ganó un sello por invitar o ser invitado' : "ganó {$n} sellos por invitar o ser invitado",
         default => $ev['type'],
     };
 }
