@@ -1,0 +1,9 @@
+# Passwords, keys and runtime data stay on the server only.
+public_html/app/config.php
+public_html/app/keys/*
+!public_html/app/keys/.htaccess
+public_html/app/storage/*
+!public_html/app/storage/.htaccess
+public_html/assets/uploads/*
+!public_html/assets/uploads/.htaccess
+.DS_Store
