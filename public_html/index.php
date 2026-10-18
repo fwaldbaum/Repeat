@@ -53,6 +53,7 @@ function route(string $method, string $path): void
         case 'GET /auth/zero':
             [$claims, $reason] = verify_zero_ticket($_GET['ticket'] ?? null);
             if (!$claims) {
+                http_response_code(401);
                 render('public/error', [
                     'title' => 'No pudimos entrar · Repeat', 'code' => 401,
                     'message' => match ($reason) {

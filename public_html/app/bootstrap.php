@@ -311,14 +311,14 @@ function too_many(string $bucket, int $max, int $windowSeconds): bool
 
 // ---- Views -----------------------------------------------------------------------------
 
-/** Renders app/views/<name>.php inside $vars['layout'] (default "site"; "none" for full pages). */
+/** Renders app/views/<name>.php inside $vars['layout']: "panel" for the business area, else "none" (full pages). */
 function render(string $name, array $vars = []): void
 {
     extract($vars, EXTR_SKIP);
     ob_start();
     require APP_DIR . "/views/{$name}.php";
     $content = ob_get_clean();
-    require APP_DIR . '/views/layouts/' . ($vars['layout'] ?? 'site') . '.php';
+    require APP_DIR . '/views/layouts/' . ($vars['layout'] ?? 'none') . '.php';
 }
 
 function partial(string $name, array $vars = []): void
