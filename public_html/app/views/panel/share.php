@@ -31,10 +31,14 @@
       </ul>
     </section>
     <section class="glass box">
-      <div class="box-head"><div><h2>Billeteras del celular</h2><p>Se activan cuando ZERO conecta las cuentas de Apple y Google.</p></div></div>
+      <div class="box-head"><div><h2>Billeteras del celular</h2><p>Tus clientes guardan la tarjeta junto a sus pases y tarjetas del celular.</p></div></div>
       <div class="grid" style="gap:8px">
         <div class="wallet-status"><span class="dot-status <?= gw_enabled() ? 'on' : '' ?>"></span>Google Wallet · <?= gw_enabled() ? 'activo' : 'próximamente' ?></div>
-        <div class="wallet-status"><span class="dot-status <?= apple_enabled() ? 'on' : '' ?>"></span>Apple Wallet · <?= apple_enabled() ? 'activo' : 'próximamente' ?></div>
+        <?php if (apple_enabled()): ?>
+          <div class="wallet-status"><span class="dot-status on"></span>Apple Wallet · activo</div>
+        <?php else: ?>
+          <div class="wallet-status"><span class="dot-status"></span><span>Apple Wallet · ¿Lo quieres para tu negocio? Escríbenos a <a class="link-accent" href="mailto:hola@zerosolutions.cl?subject=<?= rawurlencode('Apple Wallet para ' . $business['name']) ?>">hola@zerosolutions.cl</a></span></div>
+        <?php endif; ?>
         <p class="hint">Mientras tanto, la tarjeta funciona en el navegador de cualquier celular, con su código QR y sus sellos al instante.</p>
       </div>
     </section>

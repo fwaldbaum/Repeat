@@ -369,6 +369,7 @@ input[type=file].input::file-selector-button { margin-right: 12px; height: 32px;
 .checklist li { display: flex; gap: 10px; color: var(--muted); }
 .checklist li .icon { color: #a78bfa; margin-top: 2px; }
 .wallet-status { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
+.link-accent { color: #c4b5fd; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .dot-status { width: 9px; height: 9px; border-radius: 50%; background: var(--subtle); flex-shrink: 0; }
 .dot-status.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
 
