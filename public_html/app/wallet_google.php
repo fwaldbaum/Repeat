@@ -164,12 +164,15 @@ function http_request(string $method, string $url, array $data = [], ?string $be
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 12,
         CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_POSTFIELDS => $isToken ? http_build_query($data) : json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
     ]);
-    $body = (string) curl_exec($ch);
+    if ($method !== 'GET') {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $isToken ? http_build_query($data) : json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+    $body = curl_exec($ch);
     $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $error = $body === false ? curl_error($ch) : '';
     curl_close($ch);
-    return ['status' => $status, 'body' => $body, 'json' => json_decode($body, true)];
+    return ['status' => $status, 'body' => $body === false ? $error : $body, 'json' => json_decode((string) $body, true)];
 }
 
 /**
